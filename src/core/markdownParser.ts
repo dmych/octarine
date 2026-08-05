@@ -1,5 +1,5 @@
 import matter from 'gray-matter'
-import yaml from 'js-yaml'
+import * as yaml from 'js-yaml'
 import type { Task, DueDate } from '../storage'
 
 export interface TaskFileData {
