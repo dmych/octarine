@@ -3,7 +3,7 @@ export interface Task {
   title: string
   description: string
   dueDate: DueDate | null
-  completed: boolean // <-- Новое поле
+  completed: boolean
   children: Task[]
 }
 
@@ -12,8 +12,28 @@ export type DueDate = {
   value: string
 }
 
+// Пустой интерфейс для window.electronAPI будет расширен в preload скрипте
+declare global {
+  interface Window {
+    electronAPI?: {
+      getBaseDir: () => Promise<string>
+      readDir: (dirPath: string) => Promise<string[]>
+      readFile: (filePath: string) => Promise<string>
+      writeFile: (filePath: string, content: string) => Promise<void>
+      deleteFile: (filePath: string) => Promise<void>
+      getFileMtime: (filePath: string) => Promise<number>
+    }
+    __ELECTRON__?: boolean
+    capacitorGetFileSystem?: () => Promise<string>
+  }
+}
+
 const STORAGE_KEY = 'octarine-tasks'
 
+/**
+ * Загружает задачи из localStorage (только для первого запуска или отладки)
+ * В production режиме задачи загружаются из файловой системы через TaskRepository
+ */
 export function loadTasks(): Task[] {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) {

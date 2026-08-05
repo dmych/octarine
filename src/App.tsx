@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { loadTasks, saveTasks } from './storage'
+import { taskRepository } from './core/taskRepository'
 import type { Task } from './storage'
 import TaskDetail from './TaskDetail'
 import HorizonColumns from './HorizonColumns'
@@ -13,16 +13,40 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [activeHorizon, setActiveHorizon] = useState<HorizonType>('today')
+  const [isInitialized, setIsInitialized] = useState(false)
 
+  // Инициализация репозитория при старте
   useEffect(() => {
-    setTasks(loadTasks())
+    const init = async () => {
+      try {
+        await taskRepository.init()
+        
+        // Подписка на изменения задач
+        const unsubscribe = taskRepository.subscribe((newTasks) => {
+          setTasks(newTasks)
+        })
+        
+        setIsInitialized(true)
+        
+        return unsubscribe
+      } catch (error) {
+        console.error('[App] Initialization error:', error)
+        // Fallback к localStorage если репозиторий не инициализировался
+        setTasks(loadTasks())
+        setIsInitialized(true)
+      }
+    }
+    
+    init()
   }, [])
 
+  // Сохранение задач при изменении
   useEffect(() => {
-    if (tasks.length > 0) {
-      saveTasks(tasks)
+    if (tasks.length > 0 && isInitialized) {
+      // В новой модели данные сохраняются автоматически через taskRepository
+      // Этот эффект нужен только для обратной совместимости
     }
-  }, [tasks])
+  }, [tasks, isInitialized])
 
   // --- Функции обновления и создания ---
   const updateTask = (id: string, updates: Partial<Task>) => {
@@ -36,6 +60,13 @@ function App() {
       })
     }
     setTasks(updateRecursive(tasks))
+    
+    // Сохраняем изменения в файл
+    const task = findTask(tasks, id)
+    if (task) {
+      const updatedTask = { ...task, ...updates }
+      taskRepository.saveTask(updatedTask)
+    }
   }
 
   const toggleTask = (id: string) => {
@@ -80,43 +111,55 @@ function App() {
     }
     
     setTasks(updateRecursive(tasks))
+    
+    // Сохраняем все измененные задачи
+    allIds.forEach(taskId => {
+      const t = findTask(tasks, taskId)
+      if (t) {
+        taskRepository.saveTask({ ...t, completed: newCompleted })
+      }
+    })
   }
 
-const addTask = (horizon: HorizonType, title: string, openModal: boolean) => {
-  let dueDate = null
-  
-  if (horizon === 'today') {
-    const today = new Date().toISOString().split('T')[0]
-    dueDate = { type: 'day' as const, value: today }
-  } else if (horizon === 'week') {
-    const now = new Date()
-    const startOfYear = new Date(now.getFullYear(), 0, 1)
-    const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-    const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
-    dueDate = { type: 'week' as const, value: `${now.getFullYear()}-W${String(weekNumber).padStart(2, '0')}` }
-  } else if (horizon === 'month') {
-    const now = new Date()
-    dueDate = { type: 'month' as const, value: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}` }
-  } else if (horizon === 'year') {
-    dueDate = { type: 'year' as const, value: new Date().getFullYear().toString() }
+  const addTask = (horizon: HorizonType, title: string, openModal: boolean) => {
+    let dueDate = null
+    
+    if (horizon === 'today') {
+      const today = new Date().toISOString().split('T')[0]
+      dueDate = { type: 'day' as const, value: today }
+    } else if (horizon === 'week') {
+      const now = new Date()
+      const startOfYear = new Date(now.getFullYear(), 0, 1)
+      const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+      const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
+      dueDate = { type: 'week' as const, value: `${now.getFullYear()}-W${String(weekNumber).padStart(2, '0')}` }
+    } else if (horizon === 'month') {
+      const now = new Date()
+      dueDate = { type: 'month' as const, value: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}` }
+    } else if (horizon === 'year') {
+      dueDate = { type: 'year' as const, value: new Date().getFullYear().toString() }
+    }
+    
+    // Генерируем UUID для новой задачи
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title: title.trim(),
+      description: '<p></p>',
+      dueDate,
+      completed: false,
+      children: [],
+    }
+    
+    setTasks([...tasks, newTask])
+    
+    // Сохраняем задачу в файл
+    taskRepository.saveTask(newTask)
+    
+    // Открываем модальное окно только если явно передан флаг
+    if (openModal) {
+      setSelectedTaskId(newTask.id)
+    }
   }
-  
-  const newTask: Task = {
-    id: Date.now().toString(),
-    title: title.trim(),
-    description: '<p></p>',
-    dueDate,
-    completed: false,
-    children: [],
-  }
-  
-  setTasks([...tasks, newTask])
-  
-  // Открываем модальное окно только если явно передан флаг
-  if (openModal) {
-    setSelectedTaskId(newTask.id)
-  }
-}
 
   const deleteTask = (id: string) => {
     const taskToDelete = findTask(tasks, id)
@@ -140,6 +183,10 @@ const addTask = (horizon: HorizonType, title: string, openModal: boolean) => {
     }
 
     setTasks(deleteRecursive(tasks))
+    
+    // Удаляем файл задачи
+    taskRepository.deleteTask(id)
+    
     if (selectedTaskId === id) setSelectedTaskId(null)
   }
 
@@ -171,6 +218,11 @@ const addTask = (horizon: HorizonType, title: string, openModal: boolean) => {
   const selectedTaskPath = selectedTaskId ? findTaskPath(tasks, selectedTaskId) : null
 
   const isLandscape = useOrientation()
+
+  // Показываем пустой экран до инициализации
+  if (!isInitialized) {
+    return <div className="app">Loading...</div>
+  }
 
   return (
     <div className="app">

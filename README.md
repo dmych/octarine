@@ -73,7 +73,7 @@ octarine/
 
 After running `./build.sh`:
 - **Android APK**: `android/app/build/outputs/apk/debug/app-debug.apk`
-- **macOS DMG**: `dist/Octarine-0.1.0.dmg`
+- **macOS DMG**: `dist/Octarine-0.2.0.dmg`
 
 ## Development Notes
 
