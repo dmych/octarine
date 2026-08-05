@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Tempo</string>
-    <string name="title_activity_main">Tempo</string>
-    <string name="package_name">com.tempo.app</string>
-    <string name="custom_url_scheme">com.tempo.app</string>
+    <string name="app_name">Octarine</string>
+    <string name="title_activity_main">Octarine</string>
+    <string name="package_name">com.octarine.app</string>
+    <string name="custom_url_scheme">com.octarine.app</string>
 </resources>

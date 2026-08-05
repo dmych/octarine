@@ -1,5 +1,5 @@
 {
-  "name": "tempo",
+  "name": "octarine",
   "private": true,
   "version": "0.1.0",
   "main": "electron/main.js",
@@ -31,8 +31,8 @@
     "vite": "^5.0.0"
   },
   "build": {
-    "appId": "com.tempo.app",
-    "productName": "Tempo",
+    "appId": "com.octarine.app",
+    "productName": "Octarine",
     "mac": {
       "target": [
         "dmg",

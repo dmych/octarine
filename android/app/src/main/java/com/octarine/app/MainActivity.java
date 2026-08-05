@@ -1,4 +1,4 @@
-package com.tempo.app;
+package com.octarine.app;
 
 import com.getcapacitor.BridgeActivity;
 

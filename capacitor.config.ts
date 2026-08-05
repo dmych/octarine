@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tempo.app',
-  appName: 'Tempo',
+  appId: 'com.octarine.app',
+  appName: 'Octarine',
   webDir: 'dist'
 };
 

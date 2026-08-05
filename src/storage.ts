@@ -12,7 +12,7 @@ export type DueDate = {
   value: string
 }
 
-const STORAGE_KEY = 'tempo-tasks'
+const STORAGE_KEY = 'octarine-tasks'
 
 export function loadTasks(): Task[] {
   const raw = localStorage.getItem(STORAGE_KEY)
