@@ -1,43 +1,135 @@
-import { app, BrowserWindow } from 'electron'
-import path from 'path'
-import { fileURLToPath } from 'url'
+const { app, BrowserWindow, ipcMain } = require('electron')
+const path = require('path')
+const fs = require('fs')
+const os = require('os')
 
-// В ES-модулях __dirname недоступен, получаем его вручную
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+let mainWindow
+
+// Базовая директория Octarine
+// Desktop: ~/Octarine
+// Android будет использовать Capacitor Filesystem
+function getBaseDir() {
+  return path.join(os.homedir(), 'Octarine')
+}
+
+function ensureBaseDirs() {
+  const baseDir = getBaseDir()
+  const tasksDir = path.join(baseDir, 'tasks')
+  const assetsDir = path.join(baseDir, 'assets')
+  
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true })
+  }
+  if (!fs.existsSync(tasksDir)) {
+    fs.mkdirSync(tasksDir, { recursive: true })
+  }
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true })
+  }
+  
+  return { baseDir, tasksDir, assetsDir }
+}
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
   })
 
-  // В режиме разработки загружаем Vite dev server
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173')
-    // mainWindow.webContents.openDevTools() // Раскомментируй, если нужны DevTools сразу
   } else {
-    // В продакшене загружаем собранный файл
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  ensureBaseDirs()
+  createWindow()
+  
+  // IPC handlers для работы с файлами
+  
+  ipcMain.handle('getBaseDir', () => {
+    return getBaseDir()
+  })
+  
+  ipcMain.handle('readDir', (event, dirPath) => {
+    try {
+      const files = fs.readdirSync(dirPath)
+      return files
+    } catch (error) {
+      console.error('Error reading directory:', error)
+      throw error
+    }
+  })
+  
+  ipcMain.handle('readFile', (event, filePath) => {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return content
+    } catch (error) {
+      console.error('Error reading file:', error)
+      throw error
+    }
+  })
+  
+  ipcMain.handle('writeFile', (event, filePath, content) => {
+    try {
+      fs.writeFileSync(filePath, content, 'utf-8')
+    } catch (error) {
+      console.error('Error writing file:', error)
+      throw error
+    }
+  })
+  
+  ipcMain.handle('deleteFile', (event, filePath) => {
+    try {
+      fs.unlinkSync(filePath)
+    } catch (error) {
+      console.error('Error deleting file:', error)
+      throw error
+    }
+  })
+  
+  ipcMain.handle('getFileMtime', (event, filePath) => {
+    try {
+      const stats = fs.statSync(filePath)
+      return stats.mtimeMs
+    } catch (error) {
+      console.error('Error getting file mtime:', error)
+      throw error
+    }
+  })
+  
+  // Watcher для отслеживания изменений в папке tasks
+  const { tasksDir } = ensureBaseDirs()
+  const watcher = fs.watch(tasksDir, { persistent: true, recursive: true }, (eventType, filename) => {
+    if (filename && filename.endsWith('.md')) {
+      // Уведомляем renderer процесс об изменении файла
+      if (mainWindow) {
+        mainWindow.webContents.send('file-changed', { eventType, filename })
+      }
+    }
+  })
+  
+  // Очистка watcher при закрытии приложения
+  app.on('will-quit', () => {
+    watcher.close()
+  })
+})
 
 app.on('window-all-closed', () => {
-  // На macOS приложение и его меню обычно остаются активными, 
-  // пока пользователь не завершит их явно через Cmd + Q
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
 app.on('activate', () => {
-  // На macOS пересоздаем окно при клике на иконку в доке, если других окон нет
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
