@@ -1,0 +1,49 @@
+# --- Зависимости ---
+node_modules/
+
+# --- Сборка Vite / React ---
+dist/
+dist-ssr/
+*.local
+
+# --- Переменные окружения ---
+.env
+.env.local
+.env.*.local
+
+# --- macOS системные файлы ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# --- IDE и редакторы ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Android (Capacitor) ---
+*.iml
+.gradle/
+local.properties
+/android/build/
+/android/app/build/
+/android/capacitor-cordova-android-plugins/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# --- macOS (Capacitor) ---
+/mac/App/build/
+/mac/App/DerivedData/
