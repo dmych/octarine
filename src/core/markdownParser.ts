@@ -1,4 +1,3 @@
-import matter from 'gray-matter'
 import * as yaml from 'js-yaml'
 import type { Task, DueDate } from '../storage'
 
@@ -8,6 +7,54 @@ export interface TaskFileData {
   horizon: 'today' | 'week' | 'month' | 'year' | 'none'
   dueDate: string | null
   completed: boolean
+}
+
+/**
+ * Парсит YAML frontmatter из markdown содержимого
+ * Возвращает { data: объект из YAML, content: остальное содержимое }
+ */
+function parseFrontmatter(content: string): { data: Record<string, any>, content: string } {
+  const trimmedContent = content.trim()
+  
+  // Проверяем наличие frontmatter (начинается с ---)
+  if (!trimmedContent.startsWith('---')) {
+    return { data: {}, content: trimmedContent }
+  }
+  
+  // Ищем конец frontmatter
+  const endMatch = trimmedContent.match(/^---\r?\n([\s\S]*?)^---\r?\n([\s\S]*)$/m)
+  
+  if (!endMatch) {
+    return { data: {}, content: trimmedContent }
+  }
+  
+  const yamlContent = endMatch[1]
+  const markdownContent = endMatch[2].trim()
+  
+  let data: Record<string, any> = {}
+  try {
+    const parsed = yaml.load(yamlContent)
+    if (parsed && typeof parsed === 'object') {
+      data = parsed as Record<string, any>
+    }
+  } catch (e) {
+    console.error('[parseFrontmatter] Error parsing YAML:', e)
+  }
+  
+  return { data, content: markdownContent }
+}
+
+/**
+ * Сериализует данные в YAML frontmatter + markdown содержимое
+ */
+function stringifyFrontmatter(data: Record<string, any>, content: string): string {
+  const yamlStr = yaml.dump(data, {
+    lineWidth: -1, // Не переносить длинные строки
+    noRefs: true,  // Избегать ссылок
+    sortKeys: false // Сохранять порядок ключей
+  })
+  
+  return `---\n${yamlStr}---\n${content}`
 }
 
 /**
@@ -83,22 +130,14 @@ export function dueDateToHorizon(dueDate: DueDate | null): 'today' | 'week' | 'm
  * Парсит markdown файл с YAML frontmatter в объект Task
  */
 export function parseTaskFile(content: string, fileId: string): Task {
-  const file = matter(content, {
-    engines: {
-      yaml: {
-        parse: (str: string) => yaml.load(str) as object,
-        stringify: (obj: object) => yaml.dump(obj)
-      }
-    }
-  })
+  const { data, content: markdownContent } = parseFrontmatter(content)
   
-  const data = file.data as TaskFileData
-  const dueDate = isoDateToDueDate(data.dueDate)
+  const dueDate = isoDateToDueDate(data.dueDate || null)
   
   return {
     id: data.id || fileId.replace('.md', ''),
-    title: data.title,
-    description: file.content.trim(),
+    title: data.title || '',
+    description: markdownContent.trim(),
     dueDate,
     completed: data.completed ?? false,
     children: []
@@ -120,6 +159,6 @@ export function serializeTaskToFile(task: Task): string {
     completed: task.completed
   }
   
-  const content = matter.stringify(task.description || '', frontMatter)
+  const content = stringifyFrontmatter(frontMatter, task.description || '')
   return content
 }
