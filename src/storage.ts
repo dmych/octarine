@@ -22,6 +22,8 @@ declare global {
       writeFile: (filePath: string, content: string) => Promise<void>
       deleteFile: (filePath: string) => Promise<void>
       getFileMtime: (filePath: string) => Promise<number>
+      onFileChanged: (callback: (data: { eventType: string, filename: string }) => void) => void
+      removeFileChangedListener: () => void
     }
     __ELECTRON__?: boolean
     capacitorGetFileSystem?: () => Promise<string>
