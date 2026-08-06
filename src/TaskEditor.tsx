@@ -2,6 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useState } from 'react'
 import type { Task } from './storage'
+import { taskRepository } from './core/taskRepository'
 
 interface Props {
   task: Task
@@ -20,7 +21,7 @@ export default function TaskEditor({ task, onUpdate, onAddSubtask, depth = 0 }: 
 
   const editor = useEditor({
     extensions: [StarterKit],
-    content: task.description || '<p></p>',
+    content: task.description || '',
     onUpdate: ({ editor }) => {
       onUpdate(task.id, { description: editor.getHTML() })
     },
@@ -28,7 +29,7 @@ export default function TaskEditor({ task, onUpdate, onAddSubtask, depth = 0 }: 
 
   useEffect(() => {
     if (editor && editor.getHTML() !== task.description) {
-      editor.commands.setContent(task.description)
+      editor.commands.setContent(task.description || '')
     }
   }, [task.description, editor])
 
@@ -43,8 +44,21 @@ export default function TaskEditor({ task, onUpdate, onAddSubtask, depth = 0 }: 
   const handleAddSubtaskKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && newSubtaskTitle.trim() !== '') {
       e.preventDefault() // Предотвращаем перенос строки в input
-      onAddSubtask(task.id, newSubtaskTitle.trim())
-      setNewSubtaskTitle('') // Очищаем поле после создания
+      const newSubtask: Task = {
+        id: crypto.randomUUID(),
+        title: newSubtaskTitle.trim(),
+        description: '',
+        dueDate: null,
+        completed: false,
+        children: [],
+      }
+
+      onUpdate(task.id, { children: [...(task.children || []), newSubtask] })
+      setNewSubtaskTitle('')
+
+      // Сохраняем подзадачу в файл сразу после создания
+      taskRepository.saveTask(newSubtask)
+      }
     }
   }
 

@@ -49,18 +49,22 @@ export class TaskRepository {
     try {
       const files = await this.readTasksDir(tasksDir)
       const tasks = new Map<string, Task>()
+
+      console.log('[TaskRepository] Found files in tasks dir:', files)
       
       for (const fileName of files) {
         if (fileName.endsWith('.md')) {
           const filePath = `${tasksDir}/${fileName}`
           try {
             const content = await this.readFile(filePath)
+            console.log(`[TaskRepository] Reading file ${fileName}:`, content.substring(0, 100))
             const task = parseTaskFile(content, fileName)
             tasks.set(task.id, task)
             
             // Сохраняем время модификации файла
             const mtime = await this.getFileMtime(filePath)
             this.fileMtimes.set(fileName, mtime)
+            console.log(`[TaskRepository] Loaded task: ${task.id} - ${task.title}`)
           } catch (error) {
             console.error(`[TaskRepository] Error reading file ${fileName}:`, error)
           }
@@ -68,6 +72,7 @@ export class TaskRepository {
       }
       
       this.tasksCache = tasks
+      console.log('[TaskRepository] Total tasks loaded:', tasks.size)
       this.notifyChange()
     } catch (error) {
       console.error('[TaskRepository] Error loading tasks:', error)

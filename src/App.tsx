@@ -144,7 +144,7 @@ function App() {
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: title.trim(),
-      description: '<p></p>',
+      description: '',
       dueDate,
       completed: false,
       children: [],

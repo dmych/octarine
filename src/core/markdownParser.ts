@@ -10,6 +10,135 @@ export interface TaskFileData {
 }
 
 /**
+ * Конвертирует HTML в Markdown (базовая реализация)
+ */
+function htmlToMarkdown(html: string): string {
+  let md = html
+
+  // Заменяем блочные элементы на переносы строк
+  md = md.replace(/<\/p>/g, '\n\n')
+  md = md.replace(/<br\s*\/?>/g, '\n')
+  md = md.replace(/<\/h[1-6]>/g, '\n\n')
+
+  // Удаляем открывающие теги
+  md = md.replace(/<p[^>]*>/g, '')
+  md = md.replace(/<h[1-6][^>]*>/g, '')
+  md = md.replace(/<br\s*\/?>/g, '')
+
+  // Жирный текст
+  md = md.replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+  md = md.replace(/<b>(.*?)<\/b>/g, '**$1**')
+
+  // Курсив
+  md = md.replace(/<em>(.*?)<\/em>/g, '*$1*')
+  md = md.replace(/<i>(.*?)<\/i>/g, '*$1*')
+
+  // Зачеркнутый текст
+  md = md.replace(/<s>(.*?)<\/s>/g, '~~$1~~')
+  md = md.replace(/<strike>(.*?)<\/strike>/g, '~~$1~~')
+
+  // Код
+  md = md.replace(/<code>(.*?)<\/code>/g, '`$1`')
+
+  // Списки
+  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/g, (match, content) => {
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n')
+  })
+  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/g, (match, content) => {
+    let counter = 1
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, () => `${counter++}. $1\n`)
+  })
+
+  // Оставшиеся li (если ul/ol уже обработаны)
+  md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n')
+
+  // Ссылки
+  md = md.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g, '[$2]($1)')
+
+  // Изображения
+  md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/g, '![$2]($1)')
+  md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/g, '![]($1)')
+
+  // Блок цитат
+  md = md.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/g, (match, content) => {
+    return content.split('\n').map(line => `> ${line}`).join('\n')
+  })
+
+  // Удаляем оставшиеся теги
+  md = md.replace(/<[^>]+>/g, '')
+
+  // Очищаем лишние переносы строк
+  md = md.replace(/\n{3,}/g, '\n\n')
+  md = md.trim()
+
+  return md
+}
+
+/**
+ * Конвертирует Markdown в HTML (базовая реализация для редактора)
+ */
+function markdownToHtml(md: string): string {
+  let html = md
+
+  // Экранируем HTML сущности сначала (чтобы не ломать существующий HTML)
+  // Но пропускаем уже существующие HTML теги
+
+  // Заголовки
+  html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>')
+  html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+  html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>')
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>')
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>')
+
+  // Жирный текст
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+
+  // Курсив
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
+
+  // Зачеркнутый текст
+  html = html.replace(/~~(.*?)~~/g, '<s>$1</s>')
+
+  // Код
+  html = html.replace(/`(.*?)`/g, '<code>$1</code>')
+
+  // Нумерованные списки
+  html = html.replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+
+  // Маркированные списки
+  html = html.replace(/^[-*+] (.*$)/gim, '<li>$1</li>')
+
+  // Обертка списков
+  html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>')
+  html = html.replace(/<\/ul>\s*<ul>/g, '')
+
+  // Переносы строк в параграфы
+  const paragraphs = html.split(/\n\n+/)
+  html = paragraphs.map(p => {
+    p = p.trim()
+    if (!p) return ''
+    if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol')) {
+      return p
+    }
+    // Заменяем одиночные переносы на <br>
+    p = p.replace(/\n/g, '<br>')
+    return `<p>${p}</p>`
+  }).join('')
+
+  // Ссылки
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+
+  // Изображения
+  html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1">')
+
+  // Цитаты
+  html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+
+  return html
+}
+
+/**
  * Парсит YAML frontmatter из markdown содержимого
  * Возвращает { data: объект из YAML, content: остальное содержимое }
  */
@@ -133,11 +262,14 @@ export function parseTaskFile(content: string, fileId: string): Task {
   const { data, content: markdownContent } = parseFrontmatter(content)
   
   const dueDate = isoDateToDueDate(data.dueDate || null)
+
+  // Конвертируем Markdown в HTML для редактора
+  const htmlDescription = markdownToHtml(markdownContent)
   
   return {
     id: data.id || fileId.replace('.md', ''),
     title: data.title || '',
-    description: markdownContent.trim(),
+    description: htmlDescription,
     dueDate,
     completed: data.completed ?? false,
     children: []
@@ -159,6 +291,9 @@ export function serializeTaskToFile(task: Task): string {
     completed: task.completed
   }
   
-  const content = stringifyFrontmatter(frontMatter, task.description || '')
+  // Конвертируем HTML в Markdown перед сохранением
+  const markdownContent = htmlToMarkdown(task.description || '')
+
+  const content = stringifyFrontmatter(frontMatter, markdownContent)
   return content
 }

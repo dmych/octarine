@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Task, DueDate } from './storage'
 import { formatDueDate } from './dateUtils'
 import DueDatePicker from './DueDatePicker'
+import { taskRepository } from './core/taskRepository'
 
 interface Props {
   task: Task
@@ -24,13 +25,13 @@ export default function TaskDetail({
 
   const editor = useEditor({
     extensions: [StarterKit],
-    content: task.description || '<p></p>',
+    content: task.description || '',
     onUpdate: ({ editor }) => onUpdate(task.id, { description: editor.getHTML() }),
   })
 
   useEffect(() => {
     if (editor && editor.getHTML() !== task.description) {
-      editor.commands.setContent(task.description)
+      editor.commands.setContent(task.description  || '')
     }
   }, [task.description, editor])
 
@@ -57,9 +58,9 @@ export default function TaskDetail({
       const shouldOpenModal = e.metaKey || e.ctrlKey
 
       const newSubtask: Task = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         title: newSubtaskTitle.trim(),
-        description: '<p></p>',
+        description: '',
         dueDate: null,
         completed: false,
         children: [],
@@ -67,6 +68,9 @@ export default function TaskDetail({
 
       onUpdate(task.id, { children: [...(task.children || []), newSubtask] })
       setNewSubtaskTitle('')
+
+      // Сохраняем подзадачу в файл сразу после создания
+      taskRepository.saveTask(newSubtask)
 
       // Если нажат Cmd+Enter — открываем модальное окно с новой подзадачей
       if (shouldOpenModal) {
