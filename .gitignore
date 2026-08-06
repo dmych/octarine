@@ -1,45 +1,47 @@
-```
+```gitignore
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build outputs
-android/app/build/
-build/
 dist/
+build/
+coverage/
+htmlcov/
+.nyc_output/
 
-# Environment
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.mypy_cache/
+.pytest_cache/
+
+# Logs
+*.log
+
+# Environment variables
 .env
 .env.local
 *.env.*
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Logs
-*.log
-
-# Python cache (if applicable)
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Temporary files
-*.tmp
-*.temp
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Coverage reports
+# Testing
 coverage/
-htmlcov/
-.coverage
-
-# Gradle
-.gradle/
+.nyc_output/
 ```
