@@ -1,5 +1,3 @@
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
-
 export interface Task {
   id: string
   title: string
@@ -30,6 +28,21 @@ declare global {
     __ELECTRON__?: boolean
     capacitorGetFileSystem?: () => Promise<string>
   }
+}
+
+// Динамический импорт Capacitor модулей для избежания ошибок сборки Vite
+let Filesystem: any = null
+let Directory: any = null
+let Encoding: any = null
+
+async function loadCapacitorFilesystem() {
+  if (!Filesystem && isCapacitor()) {
+    const capacitorFs = await import('@capacitor/filesystem')
+    Filesystem = capacitorFs.Filesystem
+    Directory = capacitorFs.Directory
+    Encoding = capacitorFs.Encoding
+  }
+  return { Filesystem, Directory, Encoding }
 }
 
 const STORAGE_KEY = 'octarine-tasks'
@@ -85,6 +98,8 @@ export async function loadTasks(): Promise<Task[]> {
   // Для Capacitor (Android) используем Filesystem API
   if (isCapacitor()) {
     try {
+      const { Filesystem, Directory, Encoding } = await loadCapacitorFilesystem()
+      
       // Проверяем существование директории и создаем если нет
       try {
         await Filesystem.checkDir({
@@ -211,6 +226,8 @@ export async function saveTasks(tasks: Task[]): Promise<void> {
   // Для Capacitor (Android) используем Filesystem API
   if (isCapacitor()) {
     try {
+      const { Filesystem, Directory, Encoding } = await loadCapacitorFilesystem()
+      
       // Сохраняем каждую задачу в отдельный файл
       for (const task of tasks) {
         const fileName = `${task.id}.md`
