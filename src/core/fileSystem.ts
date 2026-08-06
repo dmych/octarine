@@ -1,4 +1,3 @@
-import { Filesystem, Directory } from '@capacitor/filesystem'
 import type { Task } from '../storage'
 
 /**
@@ -29,6 +28,24 @@ export interface FileSystemAdapter {
 
 // Путь к папке задач в Octarine/tasks (в корне внутренней памяти)
 const TASKS_DIR = 'Octarine/tasks'
+
+/**
+ * Динамически загружает Capacitor Filesystem только когда это необходимо
+ */
+async function getCapacitorFilesystem() {
+  if (!isCapacitor()) {
+    return null
+  }
+  
+  // Используем Function constructor для избежания статического анализа Vite
+  const importFn = new Function('module', 'return import(module)')
+  const capacitorFs = await importFn('@capacitor/filesystem')
+  return {
+    Filesystem: capacitorFs.Filesystem,
+    Directory: capacitorFs.Directory,
+    Encoding: capacitorFs.Encoding
+  }
+}
 
 /**
  * Получает базовую директорию Octarine
@@ -89,7 +106,11 @@ export async function requestStoragePermission(): Promise<boolean> {
   try {
     // Для Android 11+ (API 30+) требуется MANAGE_EXTERNAL_STORAGE
     // Для более ранних версий достаточно READ/WRITE_EXTERNAL_STORAGE
-    const { Device } = await import('@capacitor/device')
+    
+    // Используем Function constructor для избежания статического анализа Vite
+    const importFn = new Function('module', 'return import(module)')
+    const capacitorDevice = await importFn('@capacitor/device')
+    const Device = capacitorDevice.Device
     const info = await Device.getInfo()
 
     if (info.platform !== 'android') {
@@ -103,7 +124,8 @@ export async function requestStoragePermission(): Promise<boolean> {
     if (apiLevel >= 30) {
       // Android 11+: открываем настройки для предоставления доступа
       try {
-        const { AppLauncher } = await import('@capacitor/app-launcher')
+        const capacitorAppLauncher = await importFn('@capacitor/app-launcher')
+        const AppLauncher = capacitorAppLauncher.AppLauncher
         await AppLauncher.openUrl({ 
           url: `android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION&package=${encodeURIComponent('com.octarine.app')}` 
         })

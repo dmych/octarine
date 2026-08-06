@@ -37,7 +37,9 @@ let Encoding: any = null
 
 async function loadCapacitorFilesystem() {
   if (!Filesystem && isCapacitor()) {
-    const capacitorFs = await import('@capacitor/filesystem')
+    // Используем Function constructor для избежания статического анализа Vite
+    const importFn = new Function('module', 'return import(module)')
+    const capacitorFs = await importFn('@capacitor/filesystem')
     Filesystem = capacitorFs.Filesystem
     Directory = capacitorFs.Directory
     Encoding = capacitorFs.Encoding

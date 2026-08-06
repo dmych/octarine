@@ -360,8 +360,15 @@ export class TaskRepository {
   // --- Capacitor Filesystem методы ---
 
   private async getCapacitorFilesystem() {
-    // Динамический импорт через Function для избежания статического анализа Vite
-    return (0, eval)("import('@capacitor/filesystem')")
+    // Динамический импорт для избежания статического анализа Vite
+    // Используем Function constructor для избежания статического анализа Vite
+    const importFn = new Function('module', 'return import(module)')
+    const capacitorFs = await importFn('@capacitor/filesystem')
+    return {
+      Filesystem: capacitorFs.Filesystem,
+      Directory: capacitorFs.Directory,
+      Encoding: capacitorFs.Encoding
+    }
   }
 
   private async invokeCapacitorReadDir(dirPath: string): Promise<string[]> {
