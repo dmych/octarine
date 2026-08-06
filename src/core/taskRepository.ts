@@ -1,6 +1,6 @@
 import type { Task } from '../storage'
 import { parseTaskFile, serializeTaskToFile } from './markdownParser'
-import { getBaseDir, isElectron } from './fileSystem'
+import { getBaseDir, isElectron, isCapacitor } from './fileSystem'
 
 /**
  * Репозиторий для управления задачами через файловую систему
@@ -82,8 +82,12 @@ export class TaskRepository {
       return await this.invokeElectronReadDir(dirPath)
     }
     
-    // Для Android/Capacitor и web-отладки
-    // В реальной реализации здесь будет Capacitor Filesystem API
+    // Для Android/Capacitor используем Capacitor Filesystem API
+    if (isCapacitor()) {
+      return await this.invokeCapacitorReadDir(dirPath)
+    }
+    
+    // Для web-отладки возвращаем пустой массив
     return []
   }
 
@@ -95,7 +99,12 @@ export class TaskRepository {
       return await this.invokeElectronReadFile(filePath)
     }
     
-    // Для Android/Capacitor и web-отладки
+    // Для Android/Capacitor используем Capacitor Filesystem API
+    if (isCapacitor()) {
+      return await this.invokeCapacitorReadFile(filePath)
+    }
+    
+    // Для web-отладки
     return ''
   }
 
@@ -108,7 +117,13 @@ export class TaskRepository {
       return
     }
     
-    // Для Android/Capacitor и web-отладки
+    // Для Android/Capacitor используем Capacitor Filesystem API
+    if (isCapacitor()) {
+      await this.invokeCapacitorWriteFile(filePath, content)
+      return
+    }
+    
+    // Для web-отладки
     console.log('[TaskRepository] Would write to:', filePath)
   }
 
@@ -121,7 +136,13 @@ export class TaskRepository {
       return
     }
     
-    // Для Android/Capacitor и web-отладки
+    // Для Android/Capacitor используем Capacitor Filesystem API
+    if (isCapacitor()) {
+      await this.invokeCapacitorDeleteFile(filePath)
+      return
+    }
+    
+    // Для web-отладки
     console.log('[TaskRepository] Would delete:', filePath)
   }
 
@@ -193,8 +214,13 @@ export class TaskRepository {
    * Начинает отслеживание изменений
    */
   private startWatching(): void {
-    // В Electron будем использовать fs.watch через IPC
-    // Здесь только заглушка, реальная реализация в main.js
+    // В Electron используем fs.watch через IPC
+    if (window.electronAPI?.onFileChanged) {
+      window.electronAPI.onFileChanged((data: { eventType: string, filename: string }) => {
+        console.log('[TaskRepository] File changed:', data)
+        this.checkForChanges()
+      })
+    }
     console.log('[TaskRepository] Started watching for file changes')
   }
 
@@ -324,6 +350,81 @@ export class TaskRepository {
       }
       window.electronAPI.getFileMtime(filePath).then(resolve).catch(reject)
     })
+  }
+
+  // --- Capacitor Filesystem методы ---
+
+  private async invokeCapacitorReadDir(dirPath: string): Promise<string[]> {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    
+    try {
+      const result = await Filesystem.readdir({
+        path: dirPath.replace(this.baseDir!, ''),
+        directory: Directory.Data
+      })
+      return result.files.map(f => f.name)
+    } catch (error) {
+      console.error('[Capacitor] Error reading directory:', error)
+      return []
+    }
+  }
+
+  private async invokeCapacitorReadFile(filePath: string): Promise<string> {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    
+    try {
+      const result = await Filesystem.readFile({
+        path: filePath.replace(this.baseDir!, ''),
+        directory: Directory.Data,
+        encoding: 'utf8'
+      })
+      return result.data as string
+    } catch (error) {
+      console.error('[Capacitor] Error reading file:', error)
+      throw error
+    }
+  }
+
+  private async invokeCapacitorWriteFile(filePath: string, content: string): Promise<void> {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    
+    try {
+      // Создаем директорию tasks если она не существует
+      const tasksDir = `${this.baseDir}/tasks`
+      try {
+        await Filesystem.mkdir({
+          path: 'tasks',
+          directory: Directory.Data,
+          recursive: true
+        })
+      } catch (e) {
+        // Директория уже существует
+      }
+      
+      await Filesystem.writeFile({
+        path: filePath.replace(this.baseDir!, ''),
+        data: content,
+        directory: Directory.Data,
+        recursive: true
+      })
+    } catch (error) {
+      console.error('[Capacitor] Error writing file:', error)
+      throw error
+    }
+  }
+
+  private async invokeCapacitorDeleteFile(filePath: string): Promise<void> {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    
+    try {
+      await Filesystem.deleteFile({
+        path: filePath.replace(this.baseDir!, ''),
+        directory: Directory.Data
+      })
+    } catch (error) {
+      console.error('[Capacitor] Error deleting file:', error)
+      throw error
+    }
   }
 }
 
