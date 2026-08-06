@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { taskRepository } from './core/taskRepository'
 import type { Task } from './storage'
+import { loadTasks } from './storage'
 import TaskDetail from './TaskDetail'
 import HorizonColumns from './HorizonColumns'
 import './App.css'
 import { useOrientation } from './useOrientation'
 import HorizonRows from './HorizonRows'
+import { requestStoragePermission } from './core/fileSystem'
 
 type HorizonType = 'today' | 'week' | 'month' | 'year' | 'none'
 
@@ -19,6 +21,9 @@ function App() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Запрашиваем разрешение на доступ к файловой системе (для Android)
+        await requestStoragePermission()
+        
         await taskRepository.init()
         
         // Подписка на изменения задач

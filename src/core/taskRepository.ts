@@ -368,9 +368,11 @@ export class TaskRepository {
     const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
+      // Для Android используем корень внутренней памяти (Directory.External)
+      const relativePath = dirPath.replace(this.baseDir!, '').replace(/^\/+/, '')
       const result = await Filesystem.readdir({
-        path: dirPath.replace(this.baseDir!, ''),
-        directory: Directory.Data
+        path: relativePath || '.',
+        directory: Directory.External
       })
       return result.files.map(f => f.name)
     } catch (error) {
@@ -383,9 +385,11 @@ export class TaskRepository {
     const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
+      // Для Android используем корень внутренней памяти (Directory.External)
+      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
       const result = await Filesystem.readFile({
-        path: filePath.replace(this.baseDir!, ''),
-        directory: Directory.Data,
+        path: relativePath,
+        directory: Directory.External,
         encoding: 'utf8'
       })
       return result.data as string
@@ -399,12 +403,14 @@ export class TaskRepository {
     const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
-      // Создаем директорию tasks если она не существует
-      const tasksDir = `${this.baseDir}/tasks`
+      // Создаем директорию Octarine/tasks если она не существует
+      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      const dirPath = relativePath.substring(0, relativePath.lastIndexOf('/'))
+      
       try {
         await Filesystem.mkdir({
-          path: 'tasks',
-          directory: Directory.Data,
+          path: dirPath,
+          directory: Directory.External,
           recursive: true
         })
       } catch (e) {
@@ -412,9 +418,9 @@ export class TaskRepository {
       }
       
       await Filesystem.writeFile({
-        path: filePath.replace(this.baseDir!, ''),
+        path: relativePath,
         data: content,
-        directory: Directory.Data,
+        directory: Directory.External,
         recursive: true
       })
     } catch (error) {
@@ -427,9 +433,10 @@ export class TaskRepository {
     const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
+      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
       await Filesystem.deleteFile({
-        path: filePath.replace(this.baseDir!, ''),
-        directory: Directory.Data
+        path: relativePath,
+        directory: Directory.External
       })
     } catch (error) {
       console.error('[Capacitor] Error deleting file:', error)
