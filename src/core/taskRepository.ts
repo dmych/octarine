@@ -354,8 +354,13 @@ export class TaskRepository {
 
   // --- Capacitor Filesystem методы ---
 
+  private async getCapacitorFilesystem() {
+    // Динамический импорт через Function для избежания статического анализа Vite
+    return (0, eval)("import('@capacitor/filesystem')")
+  }
+
   private async invokeCapacitorReadDir(dirPath: string): Promise<string[]> {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       const result = await Filesystem.readdir({
@@ -370,7 +375,7 @@ export class TaskRepository {
   }
 
   private async invokeCapacitorReadFile(filePath: string): Promise<string> {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       const result = await Filesystem.readFile({
@@ -386,7 +391,7 @@ export class TaskRepository {
   }
 
   private async invokeCapacitorWriteFile(filePath: string, content: string): Promise<void> {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       // Создаем директорию tasks если она не существует
@@ -414,7 +419,7 @@ export class TaskRepository {
   }
 
   private async invokeCapacitorDeleteFile(filePath: string): Promise<void> {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       await Filesystem.deleteFile({
