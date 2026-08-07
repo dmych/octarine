@@ -8,4 +8,9 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@capacitor/filesystem', '@capacitor/device', '@capacitor/app-launcher'],
   },
+  build: {
+    rollupOptions: {
+      external: ['@capacitor/filesystem', '@capacitor/device', '@capacitor/app-launcher'],
+    },
+  },
 })
