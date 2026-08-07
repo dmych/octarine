@@ -1,6 +1,6 @@
 import type { Task } from '../storage'
 import { parseTaskFile, serializeTaskToFile } from './markdownParser'
-import { getBaseDir, isElectron, isCapacitor } from './fileSystem'
+import { getBaseDir, isElectron, isCapacitor, ensureBaseDirectories } from './fileSystem'
 
 /**
  * Репозиторий для управления задачами через файловую систему
@@ -19,6 +19,9 @@ export class TaskRepository {
     try {
       this.baseDir = await getBaseDir()
       console.log('[TaskRepository] Base directory:', this.baseDir)
+      
+      // Создаем базовые директории если они не существуют (для Android)
+      await ensureBaseDirectories()
       
       // Загружаем все задачи из файлов
       await this.loadAllTasks()
@@ -42,9 +45,13 @@ export class TaskRepository {
    * Загружает все задачи из папки tasks
    */
   async loadAllTasks(): Promise<void> {
-    if (!this.baseDir) return
+    if (!this.baseDir) {
+      console.error('[TaskRepository] Base directory not set')
+      return
+    }
     
     const tasksDir = `${this.baseDir}/tasks`
+    console.log('[TaskRepository] Loading tasks from:', tasksDir)
     
     try {
       const files = await this.readTasksDir(tasksDir)
@@ -376,11 +383,14 @@ export class TaskRepository {
     
     try {
       // Для Android используем корень внутренней памяти (Directory.External)
+      // dirPath имеет вид 'Octarine/tasks', нужно получить относительный путь от 'Octarine'
       const relativePath = dirPath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      console.log('[Capacitor] Reading directory:', dirPath, '-> relative:', relativePath || '.')
       const result = await Filesystem.readdir({
         path: relativePath || '.',
         directory: Directory.External
       })
+      console.log('[Capacitor] Directory contents:', result.files.map(f => f.name))
       return result.files.map(f => f.name)
     } catch (error) {
       console.error('[Capacitor] Error reading directory:', error)
@@ -393,12 +403,15 @@ export class TaskRepository {
     
     try {
       // Для Android используем корень внутренней памяти (Directory.External)
+      // filePath имеет вид 'Octarine/tasks/xxx.md', нужно получить относительный путь от 'Octarine'
       const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      console.log('[Capacitor] Reading file:', filePath, '-> relative:', relativePath)
       const result = await Filesystem.readFile({
         path: relativePath,
         directory: Directory.External,
         encoding: 'utf8'
       })
+      console.log('[Capacitor] File read successfully, length:', (result.data as string).length)
       return result.data as string
     } catch (error) {
       console.error('[Capacitor] Error reading file:', error)
@@ -411,8 +424,11 @@ export class TaskRepository {
     
     try {
       // Создаем директорию Octarine/tasks если она не существует
+      // filePath имеет вид 'Octarine/tasks/xxx.md', нужно получить относительный путь от 'Octarine'
       const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
       const dirPath = relativePath.substring(0, relativePath.lastIndexOf('/'))
+      
+      console.log('[Capacitor] Writing file:', filePath, '-> relative:', relativePath, 'dir:', dirPath)
       
       try {
         await Filesystem.mkdir({
@@ -420,16 +436,22 @@ export class TaskRepository {
           directory: Directory.External,
           recursive: true
         })
-      } catch (e) {
-        // Директория уже существует
+        console.log('[Capacitor] Created directory:', dirPath)
+      } catch (e: any) {
+        // Директория уже существует или ошибка создания
+        if (e.message?.includes('exists')) {
+          console.log('[Capacitor] Directory already exists:', dirPath)
+        } else {
+          console.error('[Capacitor] Error creating directory:', e)
+        }
       }
       
       await Filesystem.writeFile({
         path: relativePath,
         data: content,
-        directory: Directory.External,
-        recursive: true
+        directory: Directory.External
       })
+      console.log('[Capacitor] File written successfully:', relativePath)
     } catch (error) {
       console.error('[Capacitor] Error writing file:', error)
       throw error
@@ -441,10 +463,12 @@ export class TaskRepository {
     
     try {
       const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      console.log('[Capacitor] Deleting file:', filePath, '-> relative:', relativePath)
       await Filesystem.deleteFile({
         path: relativePath,
         directory: Directory.External
       })
+      console.log('[Capacitor] File deleted successfully:', relativePath)
     } catch (error) {
       console.error('[Capacitor] Error deleting file:', error)
       throw error
