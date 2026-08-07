@@ -2,10 +2,11 @@
 # Dependencies
 node_modules/
 
-# Build artifacts
+# Build outputs
 dist/
 build/
 *.js.map
+*.ts.map
 
 # Environment
 .env
@@ -15,26 +16,20 @@ build/
 # Editors
 .vscode/
 .idea/
-
-# Logs and temp files
-*.log
-*.tmp
 *.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Compiled and binary
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
 
 # Coverage
 coverage/
@@ -44,13 +39,15 @@ htmlcov/
 # MyPy
 .mypy_cache/
 
-# Pytest
+# PyTest
 .pytest_cache/
+
+# Venv
+venv/
+.venv/
 
 # Gradle
 .gradle/
-
-# Target
 target/
 
 # Compressed files
@@ -72,8 +69,4 @@ target/
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```
