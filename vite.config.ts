@@ -5,4 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './', // <-- ЭТА СТРОКА КРИТИЧЕСКИ ВАЖНА для Electron
+  optimizeDeps: {
+    include: ['@capacitor/filesystem', '@capacitor/device', '@capacitor/app-launcher'],
+  },
 })

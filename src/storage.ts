@@ -37,12 +37,16 @@ let Encoding: any = null
 
 async function loadCapacitorFilesystem() {
   if (!Filesystem && isCapacitor()) {
-    // Используем Function constructor для избежания статического анализа Vite
-    const importFn = new Function('module', 'return import(module)')
-    const capacitorFs = await importFn('@capacitor/filesystem')
-    Filesystem = capacitorFs.Filesystem
-    Directory = capacitorFs.Directory
-    Encoding = capacitorFs.Encoding
+    try {
+      // Используем обычный dynamic import - Vite должен обработать его корректно
+      const capacitorFs = await import('@capacitor/filesystem')
+      Filesystem = capacitorFs.Filesystem
+      Directory = capacitorFs.Directory
+      Encoding = capacitorFs.Encoding
+    } catch (e) {
+      console.error('Failed to load Capacitor Filesystem:', e)
+      throw e
+    }
   }
   return { Filesystem, Directory, Encoding }
 }
