@@ -61,12 +61,48 @@ export async function getBaseDir(): Promise<string> {
   // Проверка на Android (Capacitor)
   if (isCapacitor()) {
     // Для Android используем корень внутренней памяти как базовую директорию
+    // Папка Octarine будет создана при первой записи файла
     return 'Octarine'
   }
 
   // Fallback для web-отладки - используем localStorage как хранилище метаданных
   // но файлы не доступны напрямую
   return '/tmp/octarine-debug'
+}
+
+/**
+ * Создает базовую директорию Octarine и поддиректорию tasks если они не существуют
+ * Должно вызываться при инициализации приложения на Android
+ */
+export async function ensureBaseDirectories(): Promise<void> {
+  if (!isCapacitor()) {
+    return
+  }
+
+  try {
+    const importFn = new Function('module', 'return import(module)')
+    const capacitorFs = await importFn('@capacitor/filesystem')
+    const { Filesystem, Directory } = capacitorFs
+
+    // Создаем директорию Octarine/tasks если она не существует
+    try {
+      await Filesystem.mkdir({
+        path: 'Octarine/tasks',
+        directory: Directory.External,
+        recursive: true
+      })
+      console.log('[FileSystem] Created Octarine/tasks directory')
+    } catch (e: any) {
+      // Директория уже существует
+      if (e.message?.includes('exists')) {
+        console.log('[FileSystem] Octarine/tasks directory already exists')
+      } else {
+        console.error('[FileSystem] Error creating directory:', e)
+      }
+    }
+  } catch (error) {
+    console.error('[FileSystem] Error ensuring base directories:', error)
+  }
 }
 
 async function invokeElectronBaseDir(): Promise<string> {
@@ -122,19 +158,39 @@ export async function requestStoragePermission(): Promise<boolean> {
     const apiLevel = parseInt(version.split('.')[0] || '0')
 
     if (apiLevel >= 30) {
-      // Android 11+: открываем настройки для предоставления доступа
-      try {
-        const capacitorAppLauncher = await importFn('@capacitor/app-launcher')
-        const AppLauncher = capacitorAppLauncher.AppLauncher
-        await AppLauncher.openUrl({ 
-          url: `android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION&package=${encodeURIComponent('com.octarine.app')}` 
-        })
-        return true
-      } catch {
-        // Если не удалось открыть настройки, пробуем альтернативный способ
-        window.location.href = `package:com.octarine.app`
-        return true
+      // Android 11+: проверяем, есть ли уже разрешение MANAGE_EXTERNAL_STORAGE
+      const { Environment } = await importFn('@capacitor/filesystem')
+      const isManaged = await Environment.checkPermissions ? 
+        await Environment.checkPermissions() : null
+      
+      if (!isManaged || !isManaged.manageExternalStorage) {
+        // Открываем настройки для предоставления MANAGE_EXTERNAL_STORAGE
+        // Правильный формат intent для Android
+        try {
+          const capacitorAppLauncher = await importFn('@capacitor/app-launcher')
+          const AppLauncher = capacitorAppLauncher.AppLauncher
+          
+          // Пробуем открыть настройки управления всеми файлами
+          await AppLauncher.openUrl({ 
+            url: `android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` 
+          })
+        } catch (e) {
+          console.log('Could not open MANAGE settings, trying alternative...')
+          // Альтернативный способ - открываем настройки приложения
+          try {
+            const capacitorAppLauncher = await importFn('@capacitor/app-launcher')
+            const AppLauncher = capacitorAppLauncher.AppLauncher
+            await AppLauncher.openUrl({ 
+              url: `package:com.octarine.app` 
+            })
+          } catch (e2) {
+            console.error('Failed to open settings:', e2)
+            // Последний вариант - используем window.location
+            window.location.href = 'package:com.octarine.app'
+          }
+        }
       }
+      return true
     } else {
       // Android < 11: запрашиваем классические разрешения
       // Разрешения уже должны быть запрошены через Manifest
