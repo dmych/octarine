@@ -207,3 +207,41 @@ export function isOverdue(task: Task): boolean {
       return false
   }
 }
+
+/**
+ * Обновляет горизонт просроченной задачи на текущий
+ * Возвращает новую задачу с обновленным dueDate или null если изменений нет
+ */
+export function updateOverdueTaskHorizon(task: Task): Task | null {
+  if (!task.dueDate || !isOverdue(task)) {
+    return null
+  }
+
+  let newDueDate: DueDate
+  
+  switch (task.dueDate.type) {
+    case 'day':
+      // Просроченный день -> сегодня
+      newDueDate = { type: 'day', value: getToday() }
+      break
+    case 'week':
+      // Просроченная неделя -> текущая неделя
+      newDueDate = { type: 'week', value: getCurrentWeek() }
+      break
+    case 'month':
+      // Просроченный месяц -> текущий месяц
+      newDueDate = { type: 'month', value: getCurrentMonth() }
+      break
+    case 'year':
+      // Просроченный год -> текущий год
+      newDueDate = { type: 'year', value: getCurrentYear() }
+      break
+    default:
+      return null
+  }
+
+  return {
+    ...task,
+    dueDate: newDueDate
+  }
+}

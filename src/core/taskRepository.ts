@@ -1,6 +1,7 @@
 import type { Task } from '../storage'
 import { parseTaskFile, serializeTaskToFile } from './markdownParser'
 import { getBaseDir, isElectron, isCapacitor, ensureBaseDirectories } from './fileSystem'
+import { updateOverdueTaskHorizon } from '../dateUtils'
 
 /**
  * Репозиторий для управления задачами через файловую систему
@@ -68,7 +69,17 @@ export class TaskRepository {
           try {
             const content = await this.readFile(filePath)
             console.log(`[TaskRepository] Reading file ${fileName}:`, content.substring(0, 100))
-            const task = parseTaskFile(content, fileName)
+            let task = parseTaskFile(content, fileName)
+            
+            // Проверяем и обновляем просроченные задачи
+            const updatedTask = updateOverdueTaskHorizon(task)
+            if (updatedTask) {
+              console.log(`[TaskRepository] Updating overdue task: ${task.id} - ${task.title} from ${task.dueDate?.value} to ${updatedTask.dueDate?.value}`)
+              task = updatedTask
+              // Сохраняем обновленную задачу обратно в файл
+              await this.writeFile(filePath, serializeTaskToFile(task))
+            }
+            
             tasks.set(task.id, task)
             
             // Сохраняем время модификации файла
@@ -201,9 +212,22 @@ export class TaskRepository {
             // Файл изменен или новый
             try {
               const content = await this.readFile(filePath)
-              const task = parseTaskFile(content, fileName)
-              this.tasksCache.set(task.id, task)
-              this.fileMtimes.set(fileName, mtime)
+              let task = parseTaskFile(content, fileName)
+              
+              // Проверяем и обновляем просроченные задачи
+              const updatedTask = updateOverdueTaskHorizon(task)
+              if (updatedTask) {
+                console.log(`[TaskRepository] Updating overdue task: ${task.id} - ${task.title} from ${task.dueDate?.value} to ${updatedTask.dueDate?.value}`)
+                task = updatedTask
+                // Сохраняем обновленную задачу обратно в файл
+                await this.writeFile(filePath, serializeTaskToFile(task))
+                // Обновляем mtime после записи
+                const newMtime = await this.getFileMtime(filePath)
+                this.fileMtimes.set(fileName, newMtime)
+              } else {
+                this.tasksCache.set(task.id, task)
+                this.fileMtimes.set(fileName, mtime)
+              }
               hasChanges = true
             } catch (error) {
               console.error(`[TaskRepository] Error re-reading file ${fileName}:`, error)
@@ -283,15 +307,23 @@ export class TaskRepository {
       ? 'Octarine/tasks' 
       : `${this.baseDir}/tasks`
     
-    const fileName = `${task.id}.md`
+    // Проверяем и обновляем просроченные задачи перед сохранением
+    let taskToSave = task
+    const updatedTask = updateOverdueTaskHorizon(task)
+    if (updatedTask) {
+      console.log(`[TaskRepository] Updating overdue task on save: ${task.id} - ${task.title} from ${task.dueDate?.value} to ${updatedTask.dueDate?.value}`)
+      taskToSave = updatedTask
+    }
+    
+    const fileName = `${taskToSave.id}.md`
     const filePath = `${tasksDir}/${fileName}`
-    const content = serializeTaskToFile(task)
+    const content = serializeTaskToFile(taskToSave)
     
     try {
       await this.writeFile(filePath, content)
       
       // Обновляем кэш
-      this.tasksCache.set(task.id, task)
+      this.tasksCache.set(taskToSave.id, taskToSave)
       const mtime = await this.getFileMtime(filePath)
       this.fileMtimes.set(fileName, mtime)
       
