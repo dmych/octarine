@@ -45,12 +45,15 @@ export class TaskRepository {
    * Загружает все задачи из папки tasks
    */
   async loadAllTasks(): Promise<void> {
-    if (!this.baseDir) {
+    if (!this.baseDir && !isCapacitor()) {
       console.error('[TaskRepository] Base directory not set')
       return
     }
     
-    const tasksDir = `${this.baseDir}/tasks`
+    // Для Android baseDir может быть пустой строкой, тогда используем 'Octarine/tasks'
+    const tasksDir = isCapacitor() && this.baseDir === '' 
+      ? 'Octarine/tasks' 
+      : `${this.baseDir}/tasks`
     console.log('[TaskRepository] Loading tasks from:', tasksDir)
     
     try {
@@ -172,9 +175,12 @@ export class TaskRepository {
    * Проверяет изменения в файлах
    */
   async checkForChanges(): Promise<void> {
-    if (!this.baseDir) return
+    if (!this.baseDir && !isCapacitor()) return
     
-    const tasksDir = `${this.baseDir}/tasks`
+    // Для Android baseDir может быть пустой строкой, тогда используем 'Octarine/tasks'
+    const tasksDir = isCapacitor() && this.baseDir === '' 
+      ? 'Octarine/tasks' 
+      : `${this.baseDir}/tasks`
     
     try {
       const files = await this.readTasksDir(tasksDir)
@@ -268,10 +274,15 @@ export class TaskRepository {
    * Сохраняет задачу в файл
    */
   async saveTask(task: Task): Promise<void> {
-    if (!this.baseDir) return
+    if (!this.baseDir && !isCapacitor()) return
+    
+    // Для Android baseDir может быть пустой строкой, тогда используем 'Octarine/tasks'
+    const tasksDir = isCapacitor() && this.baseDir === '' 
+      ? 'Octarine/tasks' 
+      : `${this.baseDir}/tasks`
     
     const fileName = `${task.id}.md`
-    const filePath = `${this.baseDir}/tasks/${fileName}`
+    const filePath = `${tasksDir}/${fileName}`
     const content = serializeTaskToFile(task)
     
     try {
@@ -293,10 +304,15 @@ export class TaskRepository {
    * Удаляет задачу
    */
   async deleteTask(taskId: string): Promise<void> {
-    if (!this.baseDir) return
+    if (!this.baseDir && !isCapacitor()) return
+    
+    // Для Android baseDir может быть пустой строкой, тогда используем 'Octarine/tasks'
+    const tasksDir = isCapacitor() && this.baseDir === '' 
+      ? 'Octarine/tasks' 
+      : `${this.baseDir}/tasks`
     
     const fileName = `${taskId}.md`
-    const filePath = `${this.baseDir}/tasks/${fileName}`
+    const filePath = `${tasksDir}/${fileName}`
     
     try {
       await this.deleteFile(filePath)
@@ -383,8 +399,8 @@ export class TaskRepository {
     
     try {
       // Для Android используем корень внутренней памяти (Directory.External)
-      // dirPath имеет вид 'Octarine/tasks', нужно получить относительный путь от 'Octarine'
-      const relativePath = dirPath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      // dirPath имеет вид 'Octarine/tasks' или '/Octarine/tasks', нужно получить относительный путь от корня
+      const relativePath = dirPath.replace(/^\/+/, '')
       console.log('[Capacitor] Reading directory:', dirPath, '-> relative:', relativePath || '.')
       const result = await Filesystem.readdir({
         path: relativePath || '.',
@@ -403,8 +419,8 @@ export class TaskRepository {
     
     try {
       // Для Android используем корень внутренней памяти (Directory.External)
-      // filePath имеет вид 'Octarine/tasks/xxx.md', нужно получить относительный путь от 'Octarine'
-      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      // filePath имеет вид 'Octarine/tasks/xxx.md' или '/Octarine/tasks/xxx.md'
+      const relativePath = filePath.replace(/^\/+/, '')
       console.log('[Capacitor] Reading file:', filePath, '-> relative:', relativePath)
       const result = await Filesystem.readFile({
         path: relativePath,
@@ -424,8 +440,8 @@ export class TaskRepository {
     
     try {
       // Создаем директорию Octarine/tasks если она не существует
-      // filePath имеет вид 'Octarine/tasks/xxx.md', нужно получить относительный путь от 'Octarine'
-      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      // filePath имеет вид 'Octarine/tasks/xxx.md' или '/Octarine/tasks/xxx.md'
+      const relativePath = filePath.replace(/^\/+/, '')
       const dirPath = relativePath.substring(0, relativePath.lastIndexOf('/'))
       
       console.log('[Capacitor] Writing file:', filePath, '-> relative:', relativePath, 'dir:', dirPath)
@@ -462,7 +478,7 @@ export class TaskRepository {
     const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
-      const relativePath = filePath.replace(this.baseDir!, '').replace(/^\/+/, '')
+      const relativePath = filePath.replace(/^\/+/, '')
       console.log('[Capacitor] Deleting file:', filePath, '-> relative:', relativePath)
       await Filesystem.deleteFile({
         path: relativePath,

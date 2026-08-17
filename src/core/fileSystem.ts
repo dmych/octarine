@@ -62,7 +62,7 @@ export async function getBaseDir(): Promise<string> {
   if (isCapacitor()) {
     // Для Android используем корень внутренней памяти как базовую директорию
     // Папка Octarine будет создана при первой записи файла
-    return 'Octarine'
+    return ''
   }
 
   // Fallback для web-отладки - используем localStorage как хранилище метаданных
@@ -85,6 +85,7 @@ export async function ensureBaseDirectories(): Promise<void> {
     const { Filesystem, Directory } = capacitorFs
 
     // Создаем директорию Octarine/tasks если она не существует
+    // Используем путь относительно корня внешней памяти
     try {
       await Filesystem.mkdir({
         path: 'Octarine/tasks',
