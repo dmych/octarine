@@ -1,90 +1,48 @@
-```
+```gitignore
 # Dependencies
 node_modules/
 
-# Environment
-.env
-.env.local
-*.env.*
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
-# Editors
-.vscode/
-.idea/
-
-# Build artifacts
+# Build outputs
 dist/
 build/
-target/
+*.js.map
+*.ts.map
 
-# Python
+# Environment variables
+.env
+.env.local
+.env.*
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Python related (if any Python in project)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
 
-# Java
-*.class
-*.jar
-*.war
-*.ear
-*.nar
-target/
+# Temporary files
+*.tmp
+*.temp
 
-# C/C++
-*.o
-*.obj
-*.a
-*.lib
-*.so
-*.dll
-*.dylib
-*.exe
-
-# Go
-*.o
-
-# Ruby
-*.gem
-*.rbc
+# Coverage reports
 coverage/
+htmlcov/
+.coverage
 
-# Node.js
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Compression
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
+# Distribution / packaging
 *.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+*.zip
+*.egg-info/
 
-# System
+# OS generated files
 .DS_Store
 Thumbs.db
 ```
