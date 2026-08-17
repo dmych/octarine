@@ -24,13 +24,16 @@ function App() {
         // Запрашиваем разрешение на доступ к файловой системе (для Android)
         await requestStoragePermission()
         
-        // Сначала подписываемся на изменения
+        // Инициализируем репозиторий (устанавливает baseDir и создает директории)
+        await taskRepository.init()
+        
+        // Затем подписываемся на изменения
         const unsubscribe = taskRepository.subscribe((newTasks) => {
           console.log('[App] Tasks updated from repository:', newTasks.length)
           setTasks(newTasks)
         })
         
-        // Затем загружаем задачи и уведомляем подписчиков
+        // После этого загружаем задачи и уведомляем подписчиков
         await taskRepository.loadAllTasks(true)
         
         setIsInitialized(true)
