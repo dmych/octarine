@@ -24,7 +24,7 @@ export class TaskRepository {
       await ensureBaseDirectories()
       
       // Загружаем все задачи из файлов
-      await this.loadAllTasks()
+      await this.loadAllTasks(false) // false = не уведомлять подписчиков
       
       // Начинаем отслеживание изменений (только для Electron)
       if (isElectron()) {
@@ -44,7 +44,7 @@ export class TaskRepository {
   /**
    * Загружает все задачи из папки tasks
    */
-  async loadAllTasks(): Promise<void> {
+  async loadAllTasks(notify: boolean = true): Promise<void> {
     if (!this.baseDir && !isCapacitor()) {
       console.error('[TaskRepository] Base directory not set')
       return
@@ -83,7 +83,9 @@ export class TaskRepository {
       
       this.tasksCache = tasks
       console.log('[TaskRepository] Total tasks loaded:', tasks.size)
-      this.notifyChange()
+      if (notify) {
+        this.notifyChange()
+      }
     } catch (error) {
       console.error('[TaskRepository] Error loading tasks:', error)
     }
