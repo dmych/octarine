@@ -449,7 +449,7 @@ export class TaskRepository {
   }
 
   private async invokeCapacitorReadFile(filePath: string): Promise<string> {
-    const { Filesystem, Directory, Encoding } = await this.getCapacitorFilesystem()
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       // Для Android используем корень внутренней памяти (Directory.External)
@@ -459,7 +459,7 @@ export class TaskRepository {
       const result = await Filesystem.readFile({
         path: relativePath,
         directory: Directory.External,
-        encoding: Encoding.UTF8
+        encoding: 'utf8'
       })
       console.log('[Capacitor] File read successfully, length:', (result.data as string).length)
       return result.data as string
@@ -470,7 +470,7 @@ export class TaskRepository {
   }
 
   private async invokeCapacitorWriteFile(filePath: string, content: string): Promise<void> {
-    const { Filesystem, Directory, Encoding } = await this.getCapacitorFilesystem()
+    const { Filesystem, Directory } = await this.getCapacitorFilesystem()
     
     try {
       // Создаем директорию Octarine/tasks если она не существует
@@ -500,7 +500,7 @@ export class TaskRepository {
         path: relativePath,
         data: content,
         directory: Directory.External,
-        encoding: Encoding.UTF8
+        encoding: 'utf8'
       })
       console.log('[Capacitor] File written successfully:', relativePath)
     } catch (error) {
